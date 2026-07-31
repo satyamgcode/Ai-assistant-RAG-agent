@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocAgent AI - Policy & Handbook Assistant</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Material Design Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+    <!-- Custom Styleheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- SIDEBAR: DOCUMENT MANAGER -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-logo">
+                    <i class="mdi mdi-shield-text-outline"></i>
+                </div>
+                <div class="brand-details">
+                    <h1>DocAgent AI</h1>
+                    <span>Policy & Handbook Assistant</span>
+                </div>
+            </div>
+
+            <!-- Drag & Drop Uploader -->
+            <div class="upload-section">
+                <h2>Upload Documents</h2>
+                <div class="upload-card" id="dropZone">
+                    <input type="file" id="fileInput" accept=".pdf,.txt,.md" style="display: none;">
+                    <i class="mdi mdi-cloud-upload-outline"></i>
+                    <p>Drag & drop or <span>browse</span></p>
+                    <span class="upload-tip">Supports PDF, MD, TXT (Max 10MB)</span>
+                </div>
+                <div class="progress-bar-container" id="uploadProgressContainer" style="display: none;">
+                    <div class="progress-bar-label">
+                        <span id="uploadFileName">file.pdf</span>
+                        <span id="uploadPercentage">0%</span>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="uploadProgressFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents List -->
+            <div class="docs-section">
+                <div class="section-header">
+                    <h2>Indexed Files</h2>
+                    <span class="badge" id="docCountBadge">0</span>
+                </div>
+                <div class="docs-list" id="docsList">
+                    <div class="empty-docs">
+                        <i class="mdi mdi-file-question-outline"></i>
+                        <p>No documents uploaded yet</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Stats -->
+            <div class="stats-section">
+                <h2>System Analytics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Total Chunks</span>
+                        <span class="stat-val" id="statChunks">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Database Size</span>
+                        <span class="stat-val" id="statDbSize">0 KB</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA: CHAT WORKSPACE -->
+        <main class="chat-workspace">
+            <header class="workspace-header">
+                <div class="agent-status-container">
+                    <div class="agent-avatar">
+                        <i class="mdi mdi-robot-outline"></i>
+                        <span class="status-dot online"></span>
+                    </div>
+                    <div class="agent-info">
+                        <h2>Agent Gemini</h2>
+                        <div class="connection-status">
+                            <span id="connectionBadgeText">Connected</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <div class="select-wrapper">
+                        <i class="mdi mdi-brain select-icon"></i>
+                        <select id="modelSelector">
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommended)</option>
+                            <option value="gemini-2.5-pro">Gemini 2.5 Pro (Comprehensive)</option>
+                            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast)</option>
+                        </select>
+                    </div>
+                    <button class="icon-btn btn-integrate" id="openIntegrateBtn" title="Integrate Chatbot Widget">
+                        <i class="mdi mdi-code-tags"></i>
+                    </button>
+                    <button class="icon-btn btn-settings" id="openSettingsBtn" title="API Settings">
+                        <i class="mdi mdi-cog-outline"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Window -->
+            <div class="chat-window" id="chatWindow">
+                <div class="chat-welcome-container">
+                    <div class="welcome-card">
+                        <div class="welcome-icon">
+                            <i class="mdi mdi-robot-happy-outline"></i>
+                        </div>
+                        <h3>Welcome to DocAgent AI</h3>
+                        <p>I can analyze and answer detailed queries about your organization's employee handbooks, operational procedures, or legal policies. Upload files in the sidebar and ask away!</p>
+                        
+                        <div class="suggestion-header">Try these example questions:</div>
+                        <div class="suggestion-chips">
+                            <button class="chip" onclick="applySuggestion('What is the code of conduct for employees?')">
+                                <i class="mdi mdi-account-star-outline"></i> Code of conduct
+                            </button>
+                            <button class="chip" onclick="applySuggestion('What is the work from home policy?')">
+                                <i class="mdi mdi-laptop"></i> Work from home
+                            </button>
+                            <button class="chip" onclick="applySuggestion('How can I apply for casual leaves?')">
+                                <i class="mdi mdi-calendar-blank"></i> Request leaves
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Bar -->
+            <footer class="workspace-footer">
+                <div class="input-container">
+                    <textarea id="chatInput" placeholder="Ask a question about uploaded documents..." rows="1"></textarea>
+                    <button class="send-btn" id="sendBtn" disabled>
+                        <i class="mdi mdi-send"></i>
+                    </button>
+                </div>
+                <div class="footer-tip">
+                    <i class="mdi mdi-information-outline"></i> Relying strictly on uploaded document sources for answers.
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="mdi mdi-cog-outline"></i> Settings</h3>
+                <button class="close-btn" id="closeSettingsBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="apiKeyInput">Google Gemini API Key</label>
+                    <div class="input-with-icon">
+                        <i class="mdi mdi-key-variant"></i>
+                        <input type="password" id="apiKeyInput" placeholder="AI Studio API Key (AIzaSy...)">
+                    </div>
+                    <span class="field-tip">Saved in local browser storage. If configured in the <code>.env</code> file, you can leave this empty.</span>
+                </div>
+                <div class="form-group">
+                    <label for="chatbotIdInput">Active Chatbot ID</label>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <div class="input-with-icon" style="flex: 1;">
+                            <i class="mdi mdi-identifier"></i>
+                            <input type="text" id="chatbotIdInput" placeholder="chatbot_unique_id">
+                        </div>
+                        <button class="btn btn-secondary" id="regenChatbotIdBtn" type="button" title="Generate New ID" style="padding: 0 12px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                            <i class="mdi mdi-refresh"></i>
+                        </button>
+                    </div>
+                    <span class="field-tip">Isolates documents. Change this to manage/query a different chatbot's knowledge base.</span>
+                </div>
+                <div class="form-group">
+                    <label>RAG Context Search Matches</label>
+                    <div class="slider-container">
+                        <input type="range" id="ragLimitSlider" min="2" max="10" value="4">
+                        <span id="sliderVal">4 Chunks</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelSettingsBtn">Cancel</button>
+                <button class="btn btn-primary" id="saveSettingsBtn">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOCUMENT ANALYSIS MODAL -->
+    <div class="modal-overlay" id="analysisModal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3 id="analysisModalTitle">Document Analysis Report</h3>
+                <button class="close-btn" id="closeAnalysisBtn">&times;</button>
+            </div>
+            <div class="modal-body markdown-body" id="analysisModalBody">
+                <div class="loading-report">
+                    <i class="mdi mdi-loading mdi-spin"></i>
+                    <p>Generating summary report...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="closeAnalysisBtnFooter">Close Report</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTEGRATION WIDGET MODAL -->
+    <div class="modal-overlay" id="integrateModal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3><i class="mdi mdi-code-tags"></i> Integrate Chatbot Widget</h3>
+                <button class="close-btn" id="closeIntegrateBtn">&times;</button>
+            </div>
+            <div class="modal-body integration-modal-body">
+                <div class="integration-layout">
+                    <!-- Left: Customization Settings -->
+                    <div class="integration-config">
+                        <h4>Customize Your Chatbot</h4>
+                        
+                        <div class="form-group">
+                            <label for="widgetChatbotIdInput">Chatbot ID</label>
+                            <div class="input-with-icon">
+                                <i class="mdi mdi-identifier"></i>
+                                <input type="text" id="widgetChatbotIdInput" readonly style="opacity: 0.8; cursor: not-allowed;">
+                            </div>
+                            <span class="field-tip">Unique ID for this chatbot instance. Set in Settings.</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="widgetBotNameInput">Chatbot Name</label>
+                            <div class="input-with-icon">
+                                <i class="mdi mdi-robot-outline"></i>
+                                <input type="text" id="widgetBotNameInput" value="DocAgent AI">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="widgetColorInput">Theme Color</label>
+                            <div class="color-picker-container">
+                                <input type="color" id="widgetColorInput" value="#8B5CF6">
+                                <span class="color-value-text" id="widgetColorText">#8B5CF6</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="widgetGreetingInput">Initial Greeting Message</label>
+                            <textarea id="widgetGreetingInput" rows="2">Hello! How can I help you with our company policies today? 📑</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="widgetApiUrlInput">Backend API URL</label>
+                            <div class="input-with-icon">
+                                <i class="mdi mdi-web"></i>
+                                <input type="text" id="widgetApiUrlInput" placeholder="http://localhost:8000">
+                            </div>
+                            <span class="field-tip">Override this if your FastAPI backend is running on a different domain or server.</span>
+                        </div>
+                    </div>
+
+                    <!-- Right: Live Preview -->
+                    <div class="integration-preview">
+                        <h4>Live Preview</h4>
+                        <div class="widget-preview-area">
+                            <div class="preview-device">
+                                <div class="preview-app-content">
+                                    <p class="preview-placeholder-text">Your target app/website interface...</p>
+                                </div>
+                                <!-- Injected interactive widget mock -->
+                                <div class="mock-widget-container">
+                                    <div class="mock-widget-panel" id="mockWidgetPanel">
+                                        <div class="mock-widget-header" id="mockWidgetHeader">
+                                            <div class="mock-widget-header-left">
+                                                <div class="mock-widget-avatar"><i class="mdi mdi-robot-outline"></i></div>
+                                                <div class="mock-widget-info">
+                                                    <span class="mock-widget-name" id="mockWidgetName">DocAgent AI</span>
+                                                    <span class="mock-widget-status"><span class="status-dot-mock"></span>Active</span>
+                                                </div>
+                                            </div>
+                                            <button class="mock-widget-close-btn-mock">&times;</button>
+                                        </div>
+                                        <div class="mock-widget-chat" id="mockWidgetChat">
+                                            <div class="mock-msg mock-msg-agent">
+                                                <div class="mock-bubble" id="mockWidgetGreeting">Hello! How can I help you with our company policies today? 📑</div>
+                                            </div>
+                                        </div>
+                                        <div class="mock-widget-footer">
+                                            <input type="text" placeholder="Type a message..." disabled>
+                                            <button class="mock-widget-send-btn" id="mockWidgetSendBtn"><i class="mdi mdi-send"></i></button>
+                                        </div>
+                                    </div>
+                                    <button class="mock-widget-launcher" id="mockWidgetLauncher">
+                                        <i class="mdi mdi-comment-text-multiple-outline"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom: Embedded Code -->
+                <div class="integration-code-section">
+                    <h4>Copy Widget Script</h4>
+                    <p>Paste this script element into the <code>&lt;body&gt;</code> or <code>&lt;head&gt;</code> tag of any HTML file or software platform where you want the chatbot to appear.</p>
+                    <div class="code-copy-container">
+                        <pre><code id="embedCodeSnippet">&lt;script src="http://localhost:8000/widget.js" data-api-url="http://localhost:8000" data-bot-name="DocAgent AI" data-color="#8B5CF6" data-greeting="Hello!" defer&gt;&lt;/script&gt;</code></pre>
+                        <button class="btn btn-primary btn-copy-code" id="btnCopyEmbedCode">
+                            <i class="mdi mdi-content-copy"></i> Copy Code
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeIntegrateBtnFooter">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
