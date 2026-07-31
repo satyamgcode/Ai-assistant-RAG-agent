@@ -535,6 +535,12 @@ body {
     border-color: var(--bg-glass-border-hover);
 }
 
+#modelSelector option {
+    background-color: #0b0f19;
+    background-color: var(--bg-base);
+    color: var(--text-main);
+}
+
 .icon-btn {
     width: 36px;
     height: 36px;
