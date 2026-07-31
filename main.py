@@ -282,7 +282,7 @@ async def chat_with_agent(
         
         if not matches:
             return {
-                "answer": "Meow! I don't see any policy documents uploaded yet. Please upload a policy or handbook document first in the dashboard so I can reference it!",
+                "answer": "Hi , ! I don't see any policy documents uploaded yet. Please upload a policy or handbook document first in the dashboard so I can reference it!",
                 "context": []
             }
 
