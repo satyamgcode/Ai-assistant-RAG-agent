@@ -2,18 +2,34 @@
 const state = {
     documents: [],
     chatHistory: [],
-    apiKey: localStorage.getItem('docagent_api_key') || '',
+    apiKey: '',
+    hasGlobalKey: false,
     ragLimit: parseInt(localStorage.getItem('docagent_rag_limit')) || 4,
-    chatbotId: localStorage.getItem('docagent_chatbot_id') || '',
-    isTyping: false
+    chatbotId: '',
+    username: '',
+    sessionToken: localStorage.getItem('docagent_session_token') || '',
+    isTyping: false,
+    authMode: 'login' // 'login' or 'register'
 };
 
-// Generate random chatbot ID utility
-function generateChatbotId() {
-    return 'cb_' + Math.random().toString(36).substring(2, 11);
-}
-
 // DOM Elements
+const landingContainer = document.getElementById('landingContainer');
+const authContainer = document.getElementById('authContainer');
+const appContainer = document.getElementById('appContainer');
+const authForm = document.getElementById('authForm');
+const authEmail = document.getElementById('authEmail');
+const authPassword = document.getElementById('authPassword');
+const authConfirmPassword = document.getElementById('authConfirmPassword');
+const confirmPasswordGroup = document.getElementById('confirmPasswordGroup');
+const closeAuthBtn = document.getElementById('closeAuthBtn');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const toggleAuthModeBtn = document.getElementById('toggleAuthModeBtn');
+const authFormTitle = document.getElementById('authFormTitle');
+const authFormSubtitle = document.getElementById('authFormSubtitle');
+const authToggleText = document.getElementById('authToggleText');
+const headerUsername = document.getElementById('headerUsername');
+const logoutBtn = document.getElementById('logoutBtn');
+
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const uploadProgressContainer = document.getElementById('uploadProgressContainer');
@@ -39,7 +55,6 @@ const apiKeyInput = document.getElementById('apiKeyInput');
 const ragLimitSlider = document.getElementById('ragLimitSlider');
 const sliderVal = document.getElementById('sliderVal');
 const chatbotIdInput = document.getElementById('chatbotIdInput');
-const regenChatbotIdBtn = document.getElementById('regenChatbotIdBtn');
 const widgetChatbotIdInput = document.getElementById('widgetChatbotIdInput');
 
 // Analysis Modal Elements
@@ -75,44 +90,261 @@ const embedCodeSnippet = document.getElementById('embedCodeSnippet');
 const btnCopyEmbedCode = document.getElementById('btnCopyEmbedCode');
 
 // ==========================================================================
-// INITIALIZATION
+// INITIALIZATION & SESSION MANAGEMENT
 // ==========================================================================
 
-// Fetch API settings from backend if not present in state
-async function initBackendSettings() {
+// Setup global fetch wrapper to handle auth tokens and 401s
+async function authFetch(url, options = {}) {
+    options.headers = options.headers || {};
+    if (state.sessionToken) {
+        options.headers['Authorization'] = `Bearer ${state.sessionToken}`;
+    }
+    
     try {
-        const res = await fetch('/api/settings');
-        if (res.ok) {
-            const data = await res.json();
-            if (data.api_key && !state.apiKey) {
-                state.apiKey = data.api_key;
-                localStorage.setItem('docagent_api_key', data.api_key);
-            }
+        const response = await fetch(url, options);
+        if (response.status === 401) {
+            handleLogout();
+            throw new Error("Session expired. Please log in again.");
         }
+        return response;
     } catch (e) {
-        console.error("Failed to load backend settings:", e);
+        throw e;
     }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // Generate chatbot ID if not present
-    if (!state.chatbotId) {
-        state.chatbotId = generateChatbotId();
-        localStorage.setItem('docagent_chatbot_id', state.chatbotId);
+// Fetch currently logged in user info
+async function checkAuthSession() {
+    if (!state.sessionToken) {
+        showLandingScreen();
+        return;
     }
 
-    // Sync API settings
-    await initBackendSettings();
+    try {
+        const res = await fetch('/api/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${state.sessionToken}`
+            }
+        });
 
-    // Populate settings UI from state
-    apiKeyInput.value = state.apiKey;
-    chatbotIdInput.value = state.chatbotId;
-    ragLimitSlider.value = state.ragLimit;
-    sliderVal.textContent = `${state.ragLimit} Chunks`;
+        if (res.ok) {
+            const data = await res.json();
+            state.username = data.email ? data.email.split('@')[0] : 'User';
+            state.chatbotId = data.chatbotId;
+            
+            // Fetch configuration settings to sync state API Key
+            await loadSettings();
+            
+            showDashboardScreen();
+        } else {
+            handleLogout();
+        }
+    } catch (e) {
+        console.error("Auth session check failed:", e);
+        showLandingScreen();
+    }
+}
 
+function showLandingScreen() {
+    landingContainer.style.display = 'block';
+    authContainer.style.display = 'none';
+    appContainer.style.display = 'none';
+    document.body.classList.remove('dashboard-active');
+}
+
+function showAuthScreen(mode = 'login') {
+    state.authMode = mode;
+    authContainer.style.display = 'flex';
+    
+    // Sync forms UI based on mode
+    if (mode === 'register') {
+        authFormTitle.textContent = "Create an account.";
+        authFormSubtitle.textContent = "Sign up below to launch your own custom AI chatbot.";
+        authSubmitBtn.querySelector('span').textContent = "Create Account";
+        authToggleText.textContent = "Already have an account?";
+        toggleAuthModeBtn.textContent = "Log in here";
+        confirmPasswordGroup.style.display = 'flex';
+        authConfirmPassword.required = true;
+    } else {
+        authFormTitle.textContent = "Let's start a conversation.";
+        authFormSubtitle.textContent = "Enter your details below to log in to your dashboard.";
+        authSubmitBtn.querySelector('span').textContent = "Login to Dashboard";
+        authToggleText.textContent = "Don't have an account?";
+        toggleAuthModeBtn.textContent = "Create an account";
+        confirmPasswordGroup.style.display = 'none';
+        authConfirmPassword.required = false;
+    }
+
+    // Clear fields
+    authEmail.value = '';
+    authPassword.value = '';
+    authConfirmPassword.value = '';
+}
+
+function closeAuthScreen() {
+    authContainer.style.display = 'none';
+}
+
+function showDashboardScreen() {
+    landingContainer.style.display = 'none';
+    authContainer.style.display = 'none';
+    appContainer.style.display = 'flex';
+    document.body.classList.add('dashboard-active');
+    
+    headerUsername.textContent = state.username;
+    
     // Load initial list and analytics
     refreshStats();
     refreshDocuments();
+}
+
+async function handleLogout() {
+    try {
+        if (state.sessionToken) {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${state.sessionToken}`
+                }
+            });
+        }
+    } catch (e) {
+        console.error("Logout request failed:", e);
+    }
+
+    state.sessionToken = '';
+    state.username = '';
+    state.chatbotId = '';
+    state.apiKey = '';
+    state.chatHistory = [];
+    
+    localStorage.removeItem('docagent_session_token');
+    
+    // Reset Chat Box
+    chatWindow.innerHTML = `
+        <div class="chat-welcome-container">
+            <div class="welcome-card">
+                <div class="welcome-icon">
+                    <i class="mdi mdi-robot-happy-outline"></i>
+                </div>
+                <h3>Welcome to DocAgent AI</h3>
+                <p>I can analyze and answer detailed queries about your organization's employee handbooks, operational procedures, or legal policies. Upload files in the sidebar and ask away!</p>
+            </div>
+        </div>
+    `;
+
+    showLandingScreen();
+}
+
+// ==========================================================================
+// REGISTER / LOGIN SUBMISSIONS
+// ==========================================================================
+
+async function handleAuthFormSubmit() {
+    const email = authEmail.value.trim().toLowerCase();
+    const password = authPassword.value;
+
+    if (!email || !password) return;
+
+    // Simple email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert("Please enter a valid email address.");
+        return;
+    }
+
+    if (state.authMode === 'register') {
+        const confirmPassword = authConfirmPassword.value;
+        if (password !== confirmPassword) {
+            alert("Passwords do not match!");
+            return;
+        }
+        if (password.length < 4) {
+            alert("Password must be at least 4 characters long.");
+            return;
+        }
+    }
+
+    authSubmitBtn.disabled = true;
+    const originalText = authSubmitBtn.innerHTML;
+    authSubmitBtn.innerHTML = `<i class="mdi mdi-loading mdi-spin"></i> Processing...`;
+
+    const endpoint = state.authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    const requestBody = state.authMode === 'login' 
+        ? { email, password }
+        : { email, password, confirm_password: authConfirmPassword.value };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Save state
+            state.sessionToken = data.token;
+            state.username = data.email ? data.email.split('@')[0] : 'User';
+            state.chatbotId = data.chatbotId;
+            localStorage.setItem('docagent_session_token', data.token);
+
+            // Sync user settings
+            await loadSettings();
+
+            showDashboardScreen();
+        } else {
+            const err = await response.json();
+            alert(err.detail || "Authentication failed. Check your inputs.");
+        }
+    } catch (e) {
+        console.error("Authentication request failed:", e);
+        alert("Unable to connect to backend server.");
+    } finally {
+        authSubmitBtn.disabled = false;
+        authSubmitBtn.innerHTML = originalText;
+    }
+}
+
+function toggleAuthMode() {
+    if (state.authMode === 'login') {
+        showAuthScreen('register');
+    } else {
+        showAuthScreen('login');
+    }
+}
+
+// ==========================================================================
+// DOM LISTENERS SETUP
+// ==========================================================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check initial session
+    await checkAuthSession();
+
+    // Auth listeners
+    authForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleAuthFormSubmit();
+    });
+    toggleAuthModeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleAuthMode();
+    });
+    closeAuthBtn.addEventListener('click', closeAuthScreen);
+    logoutBtn.addEventListener('click', handleLogout);
+
+    // Landing navigation / CTA listeners
+    document.getElementById('landingLoginBtn').addEventListener('click', () => showAuthScreen('login'));
+    document.getElementById('landingRegisterBtn').addEventListener('click', () => showAuthScreen('register'));
+    document.getElementById('heroStartBtn').addEventListener('click', () => showAuthScreen('register'));
+    
+    // Pricing cards CTAs
+    document.querySelector('.select-free-plan').addEventListener('click', () => showAuthScreen('register'));
+    document.querySelector('.select-pro-plan').addEventListener('click', () => showAuthScreen('register'));
+    document.querySelector('.select-enterprise-plan').addEventListener('click', () => showAuthScreen('register'));
 
     // Setup input listeners
     chatInput.addEventListener('input', handleChatInputResize);
@@ -131,10 +363,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('open'));
     cancelSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('open'));
     saveSettingsBtn.addEventListener('click', saveSettings);
-    
-    regenChatbotIdBtn.addEventListener('click', () => {
-        chatbotIdInput.value = generateChatbotId();
-    });
     
     ragLimitSlider.addEventListener('input', (e) => {
         sliderVal.textContent = `${e.target.value} Chunks`;
@@ -173,14 +401,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ==========================================================================
 
 async function refreshStats() {
+    if (!state.sessionToken) return;
     try {
-        const res = await fetch(`/api/stats?chatbot_id=${encodeURIComponent(state.chatbotId)}`);
+        const res = await authFetch('/api/stats');
         if (res.ok) {
             const data = await res.json();
             statChunks.textContent = data.chunk_count.toLocaleString();
             
             // Format DB Size
-            const totalBytes = data.db_size_bytes + (data.uploads_size_bytes || 0);
+            const totalBytes = data.uploads_size_bytes || 0;
             if (totalBytes < 1024 * 1024) {
                 statDbSize.textContent = `${(totalBytes / 1024).toFixed(1)} KB`;
             } else {
@@ -193,8 +422,9 @@ async function refreshStats() {
 }
 
 async function refreshDocuments() {
+    if (!state.sessionToken) return;
     try {
-        const res = await fetch(`/api/documents?chatbot_id=${encodeURIComponent(state.chatbotId)}`);
+        const res = await authFetch('/api/documents');
         if (res.ok) {
             state.documents = await res.json();
             renderDocuments();
@@ -228,9 +458,7 @@ function renderDocuments() {
             sizeStr = `${(doc.file_size / (1024 * 1024)).toFixed(1)} MB`;
         }
 
-        const date = new Date(doc.uploaded_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-        card.innerHTML = `
+        const cardHtml = `
             <div class="doc-info-row">
                 <div class="doc-icon">
                     <i class="mdi mdi-file-document-outline"></i>
@@ -255,6 +483,7 @@ function renderDocuments() {
                 </button>
             </div>
         `;
+        card.innerHTML = cardHtml;
         docsList.appendChild(card);
     });
 }
@@ -265,7 +494,7 @@ async function deleteDocument(docId) {
     }
     
     try {
-        const res = await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
+        const res = await authFetch(`/api/documents/${docId}`, { method: 'DELETE' });
         if (res.ok) {
             refreshStats();
             refreshDocuments();
@@ -289,7 +518,7 @@ async function viewAnalysisReport(docId, filename) {
     analysisModal.classList.add('open');
 
     try {
-        const res = await fetch(`/api/documents/${docId}/analysis`);
+        const res = await authFetch(`/api/documents/${docId}/analysis`);
         if (res.ok) {
             const data = await res.json();
             analysisModalBody.innerHTML = formatMarkdown(data.analysis_report);
@@ -306,7 +535,15 @@ async function viewAnalysisReport(docId, filename) {
 // ==========================================================================
 
 function setupDragAndDrop() {
-    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('click', (e) => {
+        if (!state.apiKey && !state.hasGlobalKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            alert("Gemini API Key is missing. Please configure your API Key in Settings (gear icon in top-right) before uploading documents.");
+            return;
+        }
+        fileInput.click();
+    });
     
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
@@ -333,6 +570,13 @@ function setupDragAndDrop() {
 }
 
 function uploadFile(file) {
+    // Intercept upload if no Gemini API key is configured
+    if (!state.apiKey && !state.hasGlobalKey) {
+        alert("Gemini API Key is missing. Please configure your API Key in Settings (gear icon in top-right) before uploading documents.");
+        fileInput.value = ''; // Reset file input
+        return;
+    }
+
     // Show progress panel
     uploadFileName.textContent = file.name;
     uploadPercentage.textContent = "0%";
@@ -341,19 +585,20 @@ function uploadFile(file) {
     
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("chatbot_id", state.chatbotId);
     if (state.apiKey) {
         formData.append("api_key", state.apiKey);
     }
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/upload", true);
+    if (state.sessionToken) {
+        xhr.setRequestHeader("Authorization", `Bearer ${state.sessionToken}`);
+    }
 
     // Track upload progress
     xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
             const percentComplete = Math.round((e.loaded / e.total) * 100);
-            // Limit text updates to 99% during actual transfer, set to 100% on API parsing.
             const displayPercent = percentComplete >= 100 ? 99 : percentComplete;
             uploadPercentage.textContent = `${displayPercent}%`;
             uploadProgressFill.style.width = `${displayPercent}%`;
@@ -365,10 +610,12 @@ function uploadFile(file) {
         if (xhr.status === 200) {
             refreshStats();
             refreshDocuments();
-            // Automatically greet the user in the chat when they upload their first doc
             if (state.documents.length === 0) {
                 appendAgentWelcome(file.name);
             }
+        } else if (xhr.status === 401) {
+            handleLogout();
+            alert("Your session has expired. Please log in again.");
         } else {
             let errorMsg = "Could not upload document.";
             try {
@@ -388,7 +635,6 @@ function uploadFile(file) {
 }
 
 function appendAgentWelcome(filename) {
-    // Scroll chat window
     const welcome = document.querySelector('.chat-welcome-container');
     if (welcome) welcome.style.display = 'none';
 
@@ -422,21 +668,15 @@ async function handleSendMessage() {
     const text = chatInput.value.trim();
     if (!text || state.isTyping) return;
 
-    // Clear and reset textarea
     chatInput.value = '';
     handleChatInputResize();
     
-    // Hide welcome card if open
     const welcome = document.querySelector('.chat-welcome-container');
     if (welcome) welcome.style.display = 'none';
 
-    // Append user message bubble
     appendMessage('user', text);
-
-    // Save prompt to history
     state.chatHistory.push({ role: 'user', text: text });
     
-    // Show typing bubble
     const typingBubbleId = appendTypingIndicator();
     state.isTyping = true;
 
@@ -453,20 +693,17 @@ async function handleSendMessage() {
             headers: headers,
             body: JSON.stringify({
                 query: text,
-                chat_history: state.chatHistory.slice(-10), // Send last 10 turns
+                chat_history: state.chatHistory.slice(-10),
                 model: modelSelector.value,
                 chatbot_id: state.chatbotId
             })
         });
 
-        // Remove typing indicator
         removeTypingIndicator(typingBubbleId);
         state.isTyping = false;
 
         if (res.ok) {
             const data = await res.json();
-            
-            // Append agent bubble
             appendMessage('agent', data.answer, data.context);
             state.chatHistory.push({ role: 'model', text: data.answer });
         } else {
@@ -499,7 +736,6 @@ function appendMessage(sender, text, context = []) {
         textContainer.innerHTML = formatMarkdown(text);
         bubble.appendChild(textContainer);
         
-        // Add sources expander if RAG matching chunks are available
         if (context && context.length > 0) {
             const sourcesId = `sources_${Date.now()}`;
             const sourcesCard = document.createElement('div');
@@ -580,57 +816,46 @@ function scrollChatToBottom() {
 // CONFIGURATION & SETTINGS SAVING
 // ==========================================================================
 
+async function loadSettings() {
+    try {
+        const res = await authFetch('/api/settings');
+        if (res.ok) {
+            const data = await res.json();
+            state.apiKey = data.api_key;
+            state.chatbotId = data.chatbot_id;
+            state.hasGlobalKey = data.has_global_key;
+            
+            apiKeyInput.value = state.apiKey;
+            chatbotIdInput.value = state.chatbotId;
+        }
+    } catch (e) {
+        console.error("Failed to load settings from server:", e);
+    }
+}
+
 async function saveSettings() {
     const key = apiKeyInput.value.trim();
-    const limit = parseInt(ragLimitSlider.value);
-    const cbId = chatbotIdInput.value.trim() || generateChatbotId();
-
     state.apiKey = key;
-    state.ragLimit = limit;
-    
-    const idChanged = state.chatbotId !== cbId;
-    state.chatbotId = cbId;
 
-    localStorage.setItem('docagent_api_key', key);
-    localStorage.setItem('docagent_rag_limit', limit);
-    localStorage.setItem('docagent_chatbot_id', cbId);
+    try {
+        const res = await authFetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ api_key: key })
+        });
 
-    // Save key to backend config so integrated widgets can use it securely
-    if (key) {
-        try {
-            await fetch('/api/settings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ api_key: key })
-            });
-        } catch (e) {
-            console.error("Failed to save API key to backend:", e);
+        if (res.ok) {
+            alert("Configurations saved in your secure SaaS account!");
+            settingsModal.classList.remove('open');
+        } else {
+            const err = await res.json();
+            alert(`Error saving configurations: ${err.detail || "Unknown error"}`);
         }
-    }
-
-    settingsModal.classList.remove('open');
-    
-    if (idChanged) {
-        state.chatHistory = [];
-        const chatWindow = document.getElementById('chatWindow');
-        chatWindow.innerHTML = `
-            <div class="chat-welcome-container">
-                <div class="welcome-card">
-                    <div class="welcome-icon">
-                        <i class="mdi mdi-robot-happy-outline"></i>
-                    </div>
-                    <h3>Welcome to DocAgent AI</h3>
-                    <p>I can analyze and answer detailed queries about your organization's employee handbooks, operational procedures, or legal policies. Upload files in the sidebar and ask away!</p>
-                </div>
-            </div>
-        `;
-        refreshStats();
-        refreshDocuments();
-        alert("Configurations saved. Active Chatbot ID changed, documents and chat history updated!");
-    } else {
-        alert("Configurations saved locally and synchronized with backend. Ready to chat!");
+    } catch (e) {
+        console.error("Failed to save settings:", e);
+        alert("Failed to reach server to save configurations.");
     }
 }
 
@@ -674,7 +899,7 @@ function formatMarkdown(text) {
 
     // Numbered Lists: 1. item -> <li>item</li>
     html = html.replace(/^\d+\.\s+(.*)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>.*?<\/li>)+/gs, '<ul>$&</ul>'); // fallback container
+    html = html.replace(/(<li>.*?<\/li>)+/gs, '<ul>$&</ul>');
 
     // Paragraphs: Split on double newlines
     html = html.replace(/\n\n/g, '</p><p>');
@@ -708,20 +933,15 @@ function updateWidgetIntegrationPreview() {
     const greeting = widgetGreetingInput.value.trim() || 'Hello! How can I help you today?';
     const apiUrl = widgetApiUrlInput.value.trim() || window.location.origin;
 
-    // Update read-only Chatbot ID in integration config
     widgetChatbotIdInput.value = state.chatbotId;
-
-    // Update hex color text
     widgetColorText.textContent = color.toUpperCase();
 
-    // Update live preview mock widget styles and texts
     mockWidgetName.textContent = name;
     mockWidgetGreeting.textContent = greeting;
     mockWidgetHeader.style.background = color;
     mockWidgetLauncher.style.backgroundColor = color;
     mockWidgetSendBtn.style.backgroundColor = color;
 
-    // Generate code snippet
     const escName = name.replace(/"/g, '&quot;');
     const escGreeting = greeting.replace(/"/g, '&quot;');
     
@@ -746,7 +966,6 @@ async function copyEmbedSnippet() {
     try {
         await navigator.clipboard.writeText(snippetText);
         
-        // Show success visual feedback on button
         const originalHtml = btnCopyEmbedCode.innerHTML;
         btnCopyEmbedCode.innerHTML = '<i class="mdi mdi-check"></i> Copied!';
         btnCopyEmbedCode.style.background = 'var(--secondary)';
@@ -759,4 +978,3 @@ async function copyEmbedSnippet() {
         alert('Failed to copy the snippet. Please select and copy manually.');
     }
 }
-

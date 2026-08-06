@@ -11,7 +11,7 @@ class VectorStore:
         self.init_db()
 
     def init_db(self):
-        """Initialize the database tables for documents and vectorized chunks."""
+        """Initialize the database tables for documents, vectorized chunks, users, and sessions."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
@@ -42,6 +42,38 @@ class VectorStore:
             text TEXT NOT NULL,
             embedding BLOB NOT NULL,
             FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
+        )
+        """)
+
+        # Schema migration: Drop old users table if it still has username column
+        try:
+            cursor.execute("SELECT email FROM users LIMIT 1")
+        except sqlite3.OperationalError:
+            # Table doesn't have email column, let's migrate by dropping old tables
+            cursor.execute("DROP TABLE IF EXISTS sessions")
+            cursor.execute("DROP TABLE IF EXISTS users")
+
+        # Table 3: Users metadata
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            chatbot_id TEXT UNIQUE NOT NULL,
+            api_key TEXT DEFAULT '',
+            created_at TEXT NOT NULL
+        )
+        """)
+
+        # Table 4: User sessions
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            chatbot_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         )
         """)
 
@@ -86,12 +118,16 @@ class VectorStore:
         conn.commit()
         conn.close()
 
-    def delete_document(self, doc_id):
-        """Remove document and its vector representations."""
+    def delete_document(self, doc_id, chatbot_id=None):
+        """Remove document and its vector representations, with optional ownership validation."""
         conn = sqlite3.connect(self.db_path)
-        # Enable foreign key support in SQLite to cascade delete chunks
         conn.execute("PRAGMA foreign_keys = ON")
         cursor = conn.cursor()
+        if chatbot_id:
+            cursor.execute("SELECT 1 FROM documents WHERE id = ? AND chatbot_id = ?", (doc_id, chatbot_id))
+            if not cursor.fetchone():
+                conn.close()
+                raise ValueError("Unauthorized: Document does not belong to your chatbot.")
         cursor.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
         conn.commit()
         conn.close()
@@ -193,3 +229,96 @@ class VectorStore:
         # Sort by similarity score descending
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:limit]
+
+    # --- User Management Methods ---
+
+    def create_user(self, user_id, email, password_hash, chatbot_id):
+        """Insert a new user into the database."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        created_at = datetime.now().isoformat()
+        cursor.execute(
+            "INSERT INTO users (id, email, password_hash, chatbot_id, created_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, email, password_hash, chatbot_id, created_at)
+        )
+        conn.commit()
+        conn.close()
+
+    def get_user_by_email(self, email):
+        """Retrieve user details by email."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email, password_hash, chatbot_id, api_key FROM users WHERE email = ?", (email,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def get_user_by_id(self, user_id):
+        """Retrieve user details by user ID."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email, password_hash, chatbot_id, api_key FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def get_user_by_chatbot_id(self, chatbot_id):
+        """Retrieve user details by chatbot ID."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email, chatbot_id, api_key FROM users WHERE chatbot_id = ?", (chatbot_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def update_user_api_key(self, user_id, api_key):
+        """Update the Google Gemini API key for a user."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET api_key = ? WHERE id = ?", (api_key, user_id))
+        conn.commit()
+        conn.close()
+
+    def validate_chatbot_id(self, chatbot_id):
+        """Check if a chatbot ID belongs to a registered user."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM users WHERE chatbot_id = ?", (chatbot_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return row is not None
+
+    # --- Session Management Methods ---
+
+    def create_session(self, token, user_id, chatbot_id, expires_at):
+        """Save a new active login session."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        created_at = datetime.now().isoformat()
+        cursor.execute(
+            "INSERT INTO sessions (token, user_id, chatbot_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+            (token, user_id, chatbot_id, created_at, expires_at)
+        )
+        conn.commit()
+        conn.close()
+
+    def get_session(self, token):
+        """Fetch session information by token."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT token, user_id, chatbot_id, expires_at FROM sessions WHERE token = ?", (token,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def delete_session(self, token):
+        """Delete/revoke an active session."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()

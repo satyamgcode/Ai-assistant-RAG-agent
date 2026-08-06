@@ -1,7 +1,11 @@
 import os
 import uuid
 import shutil
-from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
+import hashlib
+import secrets
+import re
+from datetime import datetime, timedelta
+from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -45,63 +49,192 @@ class ChatRequest(BaseModel):
 class SettingsRequest(BaseModel):
     api_key: str
 
-# Endpoints
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    confirm_password: str
+
+# Password hashing helpers
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
+    return salt.hex() + ":" + key.hex()
+
+def verify_password(password: str, hashed: str) -> bool:
+    try:
+        salt_hex, key_hex = hashed.split(":")
+        salt = bytes.fromhex(salt_hex)
+        key = bytes.fromhex(key_hex)
+        new_key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
+        return secrets.compare_digest(key, new_key)
+    except Exception:
+        return False
+
+# Email format check
+def is_valid_email(email: str) -> bool:
+    regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(regex, email))
+
+# Auth Dependency
+async def get_current_user(
+    authorization: Optional[str] = Header(None),
+    x_session_token: Optional[str] = Header(None)
+):
+    token = None
+    if x_session_token:
+        token = x_session_token
+    elif authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication session token required.")
+        
+    session = vector_db.get_session(token)
+    if not session:
+        raise HTTPException(status_code=401, detail="Session expired or invalid.")
+        
+    try:
+        expires_at = datetime.fromisoformat(session["expires_at"])
+        if datetime.now() > expires_at:
+            vector_db.delete_session(token)
+            raise HTTPException(status_code=401, detail="Session expired.")
+    except Exception:
+        pass
+        
+    return session
+
+# Auth Endpoints
+
+@app.post("/api/auth/register")
+def register_user(request: RegisterRequest):
+    email = request.email.strip().lower()
+    password = request.password
+    confirm_password = request.confirm_password
+    
+    if not is_valid_email(email):
+        raise HTTPException(status_code=400, detail="Invalid email address format.")
+        
+    if len(password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters long.")
+        
+    if password != confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match.")
+        
+    existing_user = vector_db.get_user_by_email(email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="This email is already registered. Please log in.")
+        
+    user_id = str(uuid.uuid4())
+    chatbot_id = "cb_" + secrets.token_hex(6)
+    password_hash = hash_password(password)
+    
+    try:
+        vector_db.create_user(user_id, email, password_hash, chatbot_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
+        
+    # Auto-login
+    token = secrets.token_hex(24)
+    expires_at = (datetime.now() + timedelta(days=30)).isoformat()
+    vector_db.create_session(token, user_id, chatbot_id, expires_at)
+    
+    return {
+        "success": True,
+        "token": token,
+        "email": email,
+        "chatbot_id": chatbot_id
+    }
+
+@app.post("/api/auth/login")
+def login_user(request: AuthRequest):
+    email = request.email.strip().lower()
+    password = request.password
+    
+    user = vector_db.get_user_by_email(email)
+    if not user or not verify_password(password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+        
+    token = secrets.token_hex(24)
+    expires_at = (datetime.now() + timedelta(days=30)).isoformat()
+    vector_db.create_session(token, user["id"], user["chatbot_id"], expires_at)
+    
+    return {
+        "success": True,
+        "token": token,
+        "email": user["email"],
+        "chatbot_id": user["chatbot_id"]
+    }
+
+@app.post("/api/auth/logout")
+def logout_user(current_user: dict = Depends(get_current_user), x_session_token: Optional[str] = Header(None), authorization: Optional[str] = Header(None)):
+    token = x_session_token
+    if not token and authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        
+    if token:
+        vector_db.delete_session(token)
+    return {"success": True, "message": "Logged out successfully."}
+
+@app.get("/api/auth/me")
+def get_me(current_user: dict = Depends(get_current_user)):
+    user_info = vector_db.get_user_by_id(current_user["user_id"])
+    if not user_info:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return {
+        "email": user_info["email"],
+        "chatbot_id": user_info["chatbot_id"],
+        "has_custom_api_key": bool(user_info.get("api_key"))
+    }
+
+# Admin Settings Endpoints
 
 @app.get("/api/settings")
-def get_backend_settings():
-    """Retrieve backend configurations."""
-    return {"api_key": config.get_api_key()}
+def get_user_settings(current_user: dict = Depends(get_current_user)):
+    """Retrieve user configurations."""
+    user_info = vector_db.get_user_by_id(current_user["user_id"])
+    if not user_info:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return {
+        "api_key": user_info.get("api_key", ""),
+        "chatbot_id": current_user["chatbot_id"],
+        "has_global_key": bool(config.get_api_key())
+    }
 
 @app.post("/api/settings")
-def save_backend_settings(request: SettingsRequest):
-    """Save API key to backend .env file."""
+def save_user_settings(request: SettingsRequest, current_user: dict = Depends(get_current_user)):
+    """Save API key to user record."""
     try:
-        env_path = os.path.join(config.BASE_DIR, ".env")
-        lines = []
-        if os.path.exists(env_path):
-            with open(env_path, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-        
-        found = False
-        new_lines = []
-        for line in lines:
-            if line.strip().startswith("GEMINI_API_KEY="):
-                new_lines.append(f"GEMINI_API_KEY={request.api_key}\n")
-                found = True
-            else:
-                new_lines.append(line)
-        if not found:
-            new_lines.append(f"GEMINI_API_KEY={request.api_key}\n")
-            
-        with open(env_path, "w", encoding="utf-8") as f:
-            f.writelines(new_lines)
-            
-        os.environ["GEMINI_API_KEY"] = request.api_key
-        config.GEMINI_API_KEY = request.api_key
+        vector_db.update_user_api_key(current_user["user_id"], request.api_key.strip())
         return {"success": True, "message": "Settings saved successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Indexing & Documents Endpoints
+
 @app.get("/api/stats")
-def get_stats(chatbot_id: str = "default"):
-    """Retrieve indexing statistics."""
+def get_stats(current_user: dict = Depends(get_current_user)):
+    """Retrieve indexing statistics for the authenticated user's chatbot."""
     try:
+        chatbot_id = current_user["chatbot_id"]
         stats = vector_db.get_stats(chatbot_id=chatbot_id)
-        # Add uploads directory size
-        uploads_size = 0
-        for f in os.listdir(config.UPLOAD_DIR):
-            fp = os.path.join(config.UPLOAD_DIR, f)
-            if os.path.isfile(fp):
-                uploads_size += os.path.getsize(fp)
+        
+        # Calculate size of documents belonging to this chatbot
+        docs = vector_db.get_documents(chatbot_id=chatbot_id)
+        uploads_size = sum(doc["file_size"] for doc in docs)
         stats["uploads_size_bytes"] = uploads_size
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/documents")
-def list_documents(chatbot_id: str = "default"):
-    """Get all documents currently indexed."""
+def list_documents(current_user: dict = Depends(get_current_user)):
+    """Get all documents currently indexed for the authenticated user's chatbot."""
     try:
+        chatbot_id = current_user["chatbot_id"]
         docs = vector_db.get_documents(chatbot_id=chatbot_id)
         # Check if analysis report exists for each document
         for doc in docs:
@@ -115,7 +248,7 @@ def list_documents(chatbot_id: str = "default"):
 async def upload_document(
     file: UploadFile = File(...),
     api_key: Optional[str] = Form(None),
-    chatbot_id: str = Form("default")
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Upload a document, extract text, chunk it, generate embeddings,
@@ -123,19 +256,24 @@ async def upload_document(
     """
     # Validation checks
     ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in [".pdf", ".txt", ".md"]:
-        raise HTTPException(status_code=400, detail="Only PDF, TXT, and Markdown files are supported.")
+    if ext not in [".pdf", ".txt", ".md", ".docx"]:
+        raise HTTPException(status_code=400, detail="Only PDF, TXT, Markdown, and DOCX files are supported.")
 
     doc_id = str(uuid.uuid4())
     filename = file.filename
     temp_file_path = os.path.join(config.UPLOAD_DIR, f"{doc_id}{ext}")
+    chatbot_id = current_user["chatbot_id"]
     
     # Resolve API Key
-    resolved_api_key = api_key if api_key else config.get_api_key()
+    user_info = vector_db.get_user_by_id(current_user["user_id"])
+    resolved_api_key = api_key if api_key else user_info.get("api_key")
+    if not resolved_api_key:
+        resolved_api_key = config.get_api_key()
+        
     if not resolved_api_key:
         raise HTTPException(
             status_code=400,
-            detail="Gemini API Key is missing. Please configure it in settings or the .env file."
+            detail="Gemini API Key is missing. Please configure it in settings."
         )
 
     try:
@@ -208,18 +346,19 @@ async def upload_document(
         raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}.{diagnostics}")
 
 @app.delete("/api/documents/{doc_id}")
-def delete_document(doc_id: str):
+def delete_document(doc_id: str, current_user: dict = Depends(get_current_user)):
     """Remove document from filesystem, SQLite database, and delete its analysis report."""
     try:
-        # Find document details
-        docs = vector_db.get_documents()
+        chatbot_id = current_user["chatbot_id"]
+        # Retrieve document metadata first to get filename and check ownership
+        docs = vector_db.get_documents(chatbot_id=chatbot_id)
         target_doc = next((d for d in docs if d["id"] == doc_id), None)
         
         if not target_doc:
-            raise HTTPException(status_code=404, detail="Document not found.")
+            raise HTTPException(status_code=404, detail="Document not found or access denied.")
 
-        # Delete database entries
-        vector_db.delete_document(doc_id)
+        # Delete database entries with ownership check
+        vector_db.delete_document(doc_id, chatbot_id=chatbot_id)
 
         # Delete raw file from disk
         filename = target_doc["filename"]
@@ -240,8 +379,15 @@ def delete_document(doc_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/documents/{doc_id}/analysis")
-def get_document_analysis(doc_id: str):
+def get_document_analysis(doc_id: str, current_user: dict = Depends(get_current_user)):
     """Fetch the generated markdown analysis report of the document."""
+    chatbot_id = current_user["chatbot_id"]
+    # Check ownership
+    docs = vector_db.get_documents(chatbot_id=chatbot_id)
+    target_doc = next((d for d in docs if d["id"] == doc_id), None)
+    if not target_doc:
+        raise HTTPException(status_code=404, detail="Document not found or access denied.")
+
     analysis_path = os.path.join(config.DATA_DIR, f"analysis_{doc_id}.md")
     if not os.path.exists(analysis_path):
         raise HTTPException(status_code=404, detail="Analysis report not found for this document.")
@@ -252,6 +398,8 @@ def get_document_analysis(doc_id: str):
         return {"document_id": doc_id, "analysis_report": content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Public Widget Chat Endpoint
 
 @app.post("/api/chat")
 async def chat_with_agent(
@@ -265,12 +413,21 @@ async def chat_with_agent(
     query = request.query
     history = [h.dict() for h in request.chat_history] if request.chat_history else []
     
-    # Resolve API key
-    resolved_api_key = x_api_key if x_api_key else config.get_api_key()
+    # 1. Validate chatbot_id
+    chatbot_id = request.chatbot_id
+    if not chatbot_id or not vector_db.validate_chatbot_id(chatbot_id):
+        raise HTTPException(status_code=404, detail="Chatbot instance not found.")
+        
+    # 2. Resolve API key
+    user_info = vector_db.get_user_by_chatbot_id(chatbot_id)
+    resolved_api_key = x_api_key if x_api_key else (user_info.get("api_key") if user_info else None)
+    if not resolved_api_key:
+        resolved_api_key = config.get_api_key()
+        
     if not resolved_api_key:
         raise HTTPException(
             status_code=400,
-            detail="Gemini API Key is missing. Please configure it in settings or the .env file."
+            detail="Gemini API Key is missing. Please configure it in settings."
         )
 
     try:
@@ -278,11 +435,11 @@ async def chat_with_agent(
         query_emb = ai_agent.get_embedding(query, resolved_api_key)
         
         # 2. Retrieve top matching chunks
-        matches = vector_db.search_similar_chunks(query_emb, chatbot_id=request.chatbot_id, limit=4)
+        matches = vector_db.search_similar_chunks(query_emb, chatbot_id=chatbot_id, limit=4)
         
         if not matches:
             return {
-                "answer": "Hi , ! I don't see any policy documents uploaded yet. Please upload a policy or handbook document first in the dashboard so I can reference it!",
+                "answer": "Hi! I don't see any policy documents uploaded yet. Please upload a policy or handbook document first in the dashboard so I can reference it!",
                 "context": []
             }
 

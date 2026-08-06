@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,14 +8,302 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <!-- Material Design Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
     <!-- Custom Styleheet -->
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body class="dark-theme">
-    <div class="app-container">
+
+    <!-- SAAS LANDING PAGE -->
+    <div class="landing-container" id="landingContainer">
+        <!-- Header / Navigation -->
+        <header class="landing-header">
+            <div class="landing-logo">
+                <div class="brand-logo">
+                    <i class="mdi mdi-shield-text-outline"></i>
+                </div>
+                <div class="brand-details">
+                    <h1>DocAgent AI</h1>
+                    <span>SaaS Chatbot Platform</span>
+                </div>
+            </div>
+            <nav class="landing-nav">
+                <a href="#features">Features</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#pricing">Pricing</a>
+            </nav>
+            <div class="landing-nav-actions">
+                <button class="btn btn-secondary" id="landingLoginBtn">Log In</button>
+                <button class="btn btn-primary" id="landingRegisterBtn">Get Started</button>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="landing-hero">
+            <div class="hero-content">
+                <div class="badge-new">
+                    <span class="badge-pulse"></span>
+                    <span>New: Gemini 2.5 Flash Support</span>
+                </div>
+                <h1 class="hero-title">Supercharge operations with your own <span class="highlight">Custom AI
+                        Agent</span></h1>
+                <p class="hero-subtitle">Upload your employee handbooks, training guidelines, or corporate policies.
+                    Instantly query your knowledge base or embed the interactive AI widget directly into your websites
+                    and portals with just one line of code.</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary btn-large" id="heroStartBtn">
+                        <span>Get Started for Free</span>
+                        <i class="mdi mdi-arrow-right"></i>
+                    </button>
+                    <a href="#how-it-works" class="btn btn-secondary btn-large">
+                        <span>See How It Works</span>
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="dashboard-mockup">
+                    <div class="mockup-header">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                        <span class="mockup-title">DocAgent AI Workspace</span>
+                    </div>
+                    <div class="mockup-body">
+                        <div class="mockup-sidebar">
+                            <div class="mockup-item active">📂 Index Documents</div>
+                            <div class="mockup-item">💬 Custom QA Agent</div>
+                            <div class="mockup-item">⚙️ Embed Widget</div>
+                        </div>
+                        <div class="mockup-chat">
+                            <div class="mockup-chat-header">
+                                <i class="mdi mdi-robot-outline"></i> Agent Gemini
+                            </div>
+                            <div class="mockup-chat-body">
+                                <div class="mock-bubble user">What is our work from home policy?</div>
+                                <div class="mock-bubble bot">According to the uploaded Employee Handbook (page 12),
+                                    employees can work remotely up to 3 days per week with manager approval. Core hours
+                                    are 10 AM to 4 PM. 🏡</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="landing-section" id="features">
+            <h2 class="section-title">Why choose <span class="highlight">DocAgent AI</span>?</h2>
+            <p class="section-subtitle">Everything you need to turn static PDF/Markdown documents into dynamic,
+                conversational AI assets.</p>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="card-icon"><i class="mdi mdi-cloud-upload-outline"></i></div>
+                    <h3>Smart Document Ingestion</h3>
+                    <p>Easily drag and drop PDF, TXT, or Markdown documents. We chunk, vectorize, and index them in
+                        seconds.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-icon"><i class="mdi mdi-shield-check-outline"></i></div>
+                    <h3>Isolated Knowledge Bases</h3>
+                    <p>Each SaaS user receives an isolated chatbot database ID. Your documents and embeddings are
+                        completely secure.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-icon"><i class="mdi mdi-code-json"></i></div>
+                    <h3>Zero-Code Embed Widget</h3>
+                    <p>Deploy your custom chatbot on any web page. Customize the theme, initial greeting, name, and
+                        paste a single script tag.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-icon"><i class="mdi mdi-chart-timeline-variant"></i></div>
+                    <h3>System Analytics</h3>
+                    <p>Track your indexed chunks, total uploaded files, and context usage statistics straight from your
+                        admin dashboard.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section class="landing-section bg-alt" id="how-it-works">
+            <h2 class="section-title">Launch in <span class="highlight">Three Easy Steps</span></h2>
+            <p class="section-subtitle">Go from document uploads to full customer or employee Q&A in under 3 minutes.
+            </p>
+            <div class="steps-flow">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h3>Create an Account</h3>
+                    <p>Register with your email to receive a unique secure Chatbot ID.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h3>Upload & Index</h3>
+                    <p>Upload your company handbooks, training guidelines, or documentation.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h3>Deploy Anywhere</h3>
+                    <p>Embed the widget on your site or chat with it directly in the workspace.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pricing Section -->
+        <section class="landing-section" id="pricing">
+            <h2 class="section-title">Flexible <span class="highlight"> Plans</span></h2>
+            <p class="section-subtitle">Choose the package that works best for your team's document intelligence needs.
+            </p>
+            <div class="pricing-grid">
+                <!-- Free Plan -->
+                <div class="pricing-card">
+                    <div class="plan-name">Free Plan</div>
+                    <div class="plan-price">$0<span>/month</span></div>
+                    <ul class="plan-features">
+                        <li><i class="mdi mdi-check"></i> 1 Active Chatbot ID</li>
+                        <li><i class="mdi mdi-check"></i> Up to 5 PDF/TXT Files</li>
+                        <li><i class="mdi mdi-check"></i> Gemini 2.5 Flash</li>
+                        <li><i class="mdi mdi-check"></i> Basic Chatbot Widget</li>
+                    </ul>
+                    <button class="btn btn-secondary plan-btn select-free-plan">Get Started Free</button>
+                </div>
+                <!-- Pro Plan -->
+                <div class="pricing-card premium">
+                    <div class="badge-premium">Popular</div>
+                    <div class="plan-name">Pro Plan</div>
+                    <div class="plan-price">$49<span>/month</span></div>
+                    <ul class="plan-features">
+                        <li><i class="mdi mdi-check"></i> Unlimited Uploads</li>
+                        <li><i class="mdi mdi-check"></i> Gemini 2.5 Pro & Flash</li>
+                        <li><i class="mdi mdi-check"></i> Custom Theme Widgets</li>
+                        <li><i class="mdi mdi-check"></i> Analytics Dashboard</li>
+                        <li><i class="mdi mdi-check"></i> Priority API Access</li>
+                    </ul>
+                    <button class="btn btn-primary plan-btn select-pro-plan">Upgrade to Pro</button>
+                </div>
+                <!-- Enterprise -->
+                <div class="pricing-card">
+                    <div class="plan-name">Enterprise</div>
+                    <div class="plan-price">Custom</div>
+                    <ul class="plan-features">
+                        <li><i class="mdi mdi-check"></i> Isolated Database Instance</li>
+                        <li><i class="mdi mdi-check"></i> Dedicated SLA Support</li>
+                        <li><i class="mdi mdi-check"></i> Custom Fine-Tuning</li>
+                        <li><i class="mdi mdi-check"></i> Custom Domain Embedding</li>
+                    </ul>
+                    <button class="btn btn-secondary plan-btn select-enterprise-plan">Contact Sales</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="landing-footer">
+            <div class="footer-logo">
+                <i class="mdi mdi-shield-text-outline"></i> DocAgent AI
+            </div>
+            <p>&copy; 2026 DocAgent AI SaaS. All rights reserved. Powered by Google Gemini.</p>
+        </footer>
+    </div>
+
+    <!-- LANDING & AUTHENTICATION SCREEN -->
+    <div class="auth-container" id="authContainer" style="display: none;">
+        <div class="auth-wrapper">
+            <button class="close-auth-btn" id="closeAuthBtn" title="Close Modal">&times;</button>
+
+            <!-- Left Panel: Branding & Features -->
+            <div class="auth-info-panel">
+                <div class="auth-brand">
+                    <div class="brand-logo">
+                        <i class="mdi mdi-shield-text-outline"></i>
+                    </div>
+                    <div class="brand-details">
+                        <h1>DocAgent AI</h1>
+                        <span>AI SaaS Chatbot Platform</span>
+                    </div>
+                </div>
+
+                <h2 class="auth-title">Launch your custom <span class="highlight">AI Chatbot</span> in minutes.</h2>
+                <p class="auth-subtitle">Upload your company documents, train your custom agent, and integrate it into
+                    your internal portals or public websites with ease.</p>
+
+                <div class="auth-features">
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="mdi mdi-account-key-outline"></i></div>
+                        <div class="feature-text">
+                            <h3>Unique Chatbot ID</h3>
+                            <p>Every account gets its own isolated knowledge base and widget integration.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="mdi mdi-cloud-upload-outline"></i></div>
+                        <div class="feature-text">
+                            <h3>Document Indexer</h3>
+                            <p>Upload PDF, Markdown, and TXT. Retrieve answers directly from the source.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="mdi mdi-code-tags"></i></div>
+                        <div class="feature-text">
+                            <h3>Zero-Code Embed</h3>
+                            <p>Copy-paste a single script tag to integrate the chatbot anywhere.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Login / Signup Card -->
+            <div class="auth-form-panel">
+                <div class="auth-card">
+                    <div class="auth-card-header">
+                        <h2 id="authFormTitle">Let's start a conversation.</h2>
+                        <p id="authFormSubtitle">Enter your details below to log in to your dashboard.</p>
+                    </div>
+
+                    <form id="authForm" onsubmit="event.preventDefault();">
+                        <div class="form-group">
+                            <label for="authEmail">Email Address</label>
+                            <div class="input-with-icon">
+                                <i class="mdi mdi-email-outline"></i>
+                                <input type="email" id="authEmail" placeholder="you@example.com" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="authPassword">Password</label>
+                            <div class="input-with-icon">
+                                <i class="mdi mdi-lock-outline"></i>
+                                <input type="password" id="authPassword" placeholder="••••••••" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="confirmPasswordGroup" style="display: none;">
+                            <label for="authConfirmPassword">Confirm Password</label>
+                            <div class="input-with-icon">
+                                <i class="mdi mdi-lock-check-outline"></i>
+                                <input type="password" id="authConfirmPassword" placeholder="••••••••">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-auth" id="authSubmitBtn">
+                            <span>Login to Dashboard</span>
+                            <i class="mdi mdi-arrow-right"></i>
+                        </button>
+                    </form>
+
+                    <div class="auth-toggle">
+                        <span id="authToggleText">Don't have an account?</span>
+                        <a href="#" id="toggleAuthModeBtn">Create an account</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="app-container" id="appContainer" style="display: none;">
         <!-- SIDEBAR: DOCUMENT MANAGER -->
         <aside class="sidebar">
             <div class="sidebar-header">
@@ -31,10 +320,10 @@
             <div class="upload-section">
                 <h2>Upload Documents</h2>
                 <div class="upload-card" id="dropZone">
-                    <input type="file" id="fileInput" accept=".pdf,.txt,.md" style="display: none;">
+                    <input type="file" id="fileInput" accept=".pdf,.txt,.md,.docx" style="display: none;">
                     <i class="mdi mdi-cloud-upload-outline"></i>
                     <p>Drag & drop or <span>browse</span></p>
-                    <span class="upload-tip">Supports PDF, MD, TXT (Max 10MB)</span>
+                    <span class="upload-tip">Supports PDF, MD, TXT, DOCX (Max 10MB)</span>
                 </div>
                 <div class="progress-bar-container" id="uploadProgressContainer" style="display: none;">
                     <div class="progress-bar-label">
@@ -94,6 +383,10 @@
                 </div>
 
                 <div class="header-actions">
+                    <div class="user-profile-badge" id="userProfileBadge">
+                        <i class="mdi mdi-account-circle-outline"></i>
+                        <span id="headerUsername">Guest</span>
+                    </div>
                     <div class="select-wrapper">
                         <i class="mdi mdi-brain select-icon"></i>
                         <select id="modelSelector">
@@ -108,6 +401,9 @@
                     <button class="icon-btn btn-settings" id="openSettingsBtn" title="API Settings">
                         <i class="mdi mdi-cog-outline"></i>
                     </button>
+                    <button class="icon-btn btn-logout" id="logoutBtn" title="Sign Out">
+                        <i class="mdi mdi-logout"></i>
+                    </button>
                 </div>
             </header>
 
@@ -119,11 +415,13 @@
                             <i class="mdi mdi-robot-happy-outline"></i>
                         </div>
                         <h3>Welcome to DocAgent AI</h3>
-                        <p>I can analyze and answer detailed queries about your organization's employee handbooks, operational procedures, or legal policies. Upload files in the sidebar and ask away!</p>
-                        
+                        <p>I can analyze and answer detailed queries about your organization's employee handbooks,
+                            operational procedures, or legal policies. Upload files in the sidebar and ask away!</p>
+
                         <div class="suggestion-header">Try these example questions:</div>
                         <div class="suggestion-chips">
-                            <button class="chip" onclick="applySuggestion('What is the code of conduct for employees?')">
+                            <button class="chip"
+                                onclick="applySuggestion('What is the code of conduct for employees?')">
                                 <i class="mdi mdi-account-star-outline"></i> Code of conduct
                             </button>
                             <button class="chip" onclick="applySuggestion('What is the work from home policy?')">
@@ -140,13 +438,15 @@
             <!-- Input Bar -->
             <footer class="workspace-footer">
                 <div class="input-container">
-                    <textarea id="chatInput" placeholder="Ask a question about uploaded documents..." rows="1"></textarea>
+                    <textarea id="chatInput" placeholder="Ask a question about uploaded documents..."
+                        rows="1"></textarea>
                     <button class="send-btn" id="sendBtn" disabled>
                         <i class="mdi mdi-send"></i>
                     </button>
                 </div>
                 <div class="footer-tip">
-                    <i class="mdi mdi-information-outline"></i> Relying strictly on uploaded document sources for answers.
+                    <i class="mdi mdi-information-outline"></i> Relying strictly on uploaded document sources for
+                    answers.
                 </div>
             </footer>
         </main>
@@ -166,20 +466,17 @@
                         <i class="mdi mdi-key-variant"></i>
                         <input type="password" id="apiKeyInput" placeholder="AI Studio API Key (AIzaSy...)">
                     </div>
-                    <span class="field-tip">Saved in local browser storage. If configured in the <code>.env</code> file, you can leave this empty.</span>
+                    <span class="field-tip">Saved in your secure SaaS account. If left empty, the system master key will
+                        be used.</span>
                 </div>
                 <div class="form-group">
-                    <label for="chatbotIdInput">Active Chatbot ID</label>
-                    <div style="display: flex; gap: 8px; width: 100%;">
-                        <div class="input-with-icon" style="flex: 1;">
-                            <i class="mdi mdi-identifier"></i>
-                            <input type="text" id="chatbotIdInput" placeholder="chatbot_unique_id">
-                        </div>
-                        <button class="btn btn-secondary" id="regenChatbotIdBtn" type="button" title="Generate New ID" style="padding: 0 12px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
-                            <i class="mdi mdi-refresh"></i>
-                        </button>
+                    <label for="chatbotIdInput">Your Unique Chatbot ID</label>
+                    <div class="input-with-icon">
+                        <i class="mdi mdi-identifier"></i>
+                        <input type="text" id="chatbotIdInput" readonly style="opacity: 0.8; cursor: not-allowed;">
                     </div>
-                    <span class="field-tip">Isolates documents. Change this to manage/query a different chatbot's knowledge base.</span>
+                    <span class="field-tip">This isolates your documents. Used in widget integrations to load your
+                        custom knowledge base.</span>
                 </div>
                 <div class="form-group">
                     <label>RAG Context Search Matches</label>
@@ -227,16 +524,17 @@
                     <!-- Left: Customization Settings -->
                     <div class="integration-config">
                         <h4>Customize Your Chatbot</h4>
-                        
+
                         <div class="form-group">
                             <label for="widgetChatbotIdInput">Chatbot ID</label>
                             <div class="input-with-icon">
                                 <i class="mdi mdi-identifier"></i>
-                                <input type="text" id="widgetChatbotIdInput" readonly style="opacity: 0.8; cursor: not-allowed;">
+                                <input type="text" id="widgetChatbotIdInput" readonly
+                                    style="opacity: 0.8; cursor: not-allowed;">
                             </div>
-                            <span class="field-tip">Unique ID for this chatbot instance. Set in Settings.</span>
+                            <span class="field-tip">Unique ID for your chatbot instance.</span>
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="widgetBotNameInput">Chatbot Name</label>
                             <div class="input-with-icon">
@@ -255,7 +553,8 @@
 
                         <div class="form-group">
                             <label for="widgetGreetingInput">Initial Greeting Message</label>
-                            <textarea id="widgetGreetingInput" rows="2">Hello! How can I help you with our company policies today? 📑</textarea>
+                            <textarea id="widgetGreetingInput"
+                                rows="2">Hello! How can I help you with our company policies today? 📑</textarea>
                         </div>
 
                         <div class="form-group">
@@ -264,7 +563,8 @@
                                 <i class="mdi mdi-web"></i>
                                 <input type="text" id="widgetApiUrlInput" placeholder="http://localhost:8000">
                             </div>
-                            <span class="field-tip">Override this if your FastAPI backend is running on a different domain or server.</span>
+                            <span class="field-tip">Override this if your FastAPI backend is running on a different
+                                domain or server.</span>
                         </div>
                     </div>
 
@@ -281,22 +581,27 @@
                                     <div class="mock-widget-panel" id="mockWidgetPanel">
                                         <div class="mock-widget-header" id="mockWidgetHeader">
                                             <div class="mock-widget-header-left">
-                                                <div class="mock-widget-avatar"><i class="mdi mdi-robot-outline"></i></div>
+                                                <div class="mock-widget-avatar"><i class="mdi mdi-robot-outline"></i>
+                                                </div>
                                                 <div class="mock-widget-info">
-                                                    <span class="mock-widget-name" id="mockWidgetName">DocAgent AI</span>
-                                                    <span class="mock-widget-status"><span class="status-dot-mock"></span>Active</span>
+                                                    <span class="mock-widget-name" id="mockWidgetName">DocAgent
+                                                        AI</span>
+                                                    <span class="mock-widget-status"><span
+                                                            class="status-dot-mock"></span>Active</span>
                                                 </div>
                                             </div>
                                             <button class="mock-widget-close-btn-mock">&times;</button>
                                         </div>
                                         <div class="mock-widget-chat" id="mockWidgetChat">
                                             <div class="mock-msg mock-msg-agent">
-                                                <div class="mock-bubble" id="mockWidgetGreeting">Hello! How can I help you with our company policies today? 📑</div>
+                                                <div class="mock-bubble" id="mockWidgetGreeting">Hello! How can I help
+                                                    you with our company policies today? 📑</div>
                                             </div>
                                         </div>
                                         <div class="mock-widget-footer">
                                             <input type="text" placeholder="Type a message..." disabled>
-                                            <button class="mock-widget-send-btn" id="mockWidgetSendBtn"><i class="mdi mdi-send"></i></button>
+                                            <button class="mock-widget-send-btn" id="mockWidgetSendBtn"><i
+                                                    class="mdi mdi-send"></i></button>
                                         </div>
                                     </div>
                                     <button class="mock-widget-launcher" id="mockWidgetLauncher">
@@ -311,7 +616,8 @@
                 <!-- Bottom: Embedded Code -->
                 <div class="integration-code-section">
                     <h4>Copy Widget Script</h4>
-                    <p>Paste this script element into the <code>&lt;body&gt;</code> or <code>&lt;head&gt;</code> tag of any HTML file or software platform where you want the chatbot to appear.</p>
+                    <p>Paste this script element into the <code>&lt;body&gt;</code> or <code>&lt;head&gt;</code> tag of
+                        any HTML file or software platform where you want the chatbot to appear.</p>
                     <div class="code-copy-container">
                         <pre><code id="embedCodeSnippet">&lt;script src="http://localhost:8000/widget.js" data-api-url="http://localhost:8000" data-bot-name="DocAgent AI" data-color="#8B5CF6" data-greeting="Hello!" defer&gt;&lt;/script&gt;</code></pre>
                         <button class="btn btn-primary btn-copy-code" id="btnCopyEmbedCode">
@@ -328,4 +634,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>

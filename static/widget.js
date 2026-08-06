@@ -1,7 +1,13 @@
 (function() {
     // 1. Resolve configuration from script data-attributes
-    const currentScript = document.currentScript || (() => {
+    const currentScript = (() => {
+        if (document.currentScript) return document.currentScript;
         const scripts = document.getElementsByTagName('script');
+        for (let i = 0; i < scripts.length; i++) {
+            if (scripts[i].src && (scripts[i].src.includes('widget.js') || scripts[i].getAttribute('data-chatbot-id'))) {
+                return scripts[i];
+            }
+        }
         return scripts[scripts.length - 1];
     })();
 
@@ -554,234 +560,242 @@
         shield: `<svg viewBox="0 0 24 24"><path d="M12,22C17.07,18.76 20,14.07 20,10V4L12,1L4,4V10C4,14.07 6.93,18.76 12,22Z"/></svg>`
     };
 
-    // 4. Create DOM elements
-    const widgetContainer = document.createElement('div');
-    widgetContainer.className = 'docagent-widget-container';
+    function initWidget() {
+        // 4. Create DOM elements
+        const widgetContainer = document.createElement('div');
+        widgetContainer.className = 'docagent-widget-container';
 
-    // Panel
-    const panel = document.createElement('div');
-    panel.className = 'docagent-widget-panel';
-    panel.innerHTML = `
-        <div class="docagent-widget-header">
-            <div class="docagent-widget-header-info">
-                <div class="docagent-widget-header-avatar">
-                    ${SVGS.robot}
+        // Panel
+        const panel = document.createElement('div');
+        panel.className = 'docagent-widget-panel';
+        panel.innerHTML = `
+            <div class="docagent-widget-header">
+                <div class="docagent-widget-header-info">
+                    <div class="docagent-widget-header-avatar">
+                        ${SVGS.robot}
+                    </div>
+                    <div class="docagent-widget-header-details">
+                        <span class="docagent-widget-header-name">${escapeHtml(botName)}</span>
+                        <span class="docagent-widget-header-status">
+                            <span class="docagent-widget-header-dot"></span>
+                            Active Assistant
+                        </span>
+                    </div>
                 </div>
-                <div class="docagent-widget-header-details">
-                    <span class="docagent-widget-header-name">${escapeHtml(botName)}</span>
-                    <span class="docagent-widget-header-status">
-                        <span class="docagent-widget-header-dot"></span>
-                        Active Assistant
-                    </span>
-                </div>
-            </div>
-            <button class="docagent-widget-header-close" title="Close chat">
-                ${SVGS.close}
-            </button>
-        </div>
-        <div class="docagent-widget-chat-history"></div>
-        <div class="docagent-widget-footer">
-            <div class="docagent-widget-input-row">
-                <textarea class="docagent-widget-input" placeholder="Type a message..." rows="1"></textarea>
-                <button class="docagent-widget-send-btn" disabled>
-                    ${SVGS.send}
+                <button class="docagent-widget-header-close" title="Close chat">
+                    ${SVGS.close}
                 </button>
             </div>
-            <a href="${apiUrl}" target="_blank" class="docagent-widget-brand-link">
-                Powered by ${SVGS.shield} DocAgent AI
-            </a>
-        </div>
-    `;
-
-    // Launcher
-    const launcher = document.createElement('div');
-    launcher.className = 'docagent-widget-launcher';
-    launcher.innerHTML = SVGS.chat;
-
-    widgetContainer.appendChild(panel);
-    widgetContainer.appendChild(launcher);
-    document.body.appendChild(widgetContainer);
-
-    // Dom elements references
-    const chatHistoryEl = panel.querySelector('.docagent-widget-chat-history');
-    const inputEl = panel.querySelector('.docagent-widget-input');
-    const sendBtnEl = panel.querySelector('.docagent-widget-send-btn');
-    const closeBtnEl = panel.querySelector('.docagent-widget-header-close');
-
-    // 5. Message rendering functions
-    function appendMessage(sender, text, context = null) {
-        const msgWrapper = document.createElement('div');
-        msgWrapper.className = `docagent-widget-msg docagent-widget-msg-${sender}`;
-
-        const avatar = document.createElement('div');
-        avatar.className = 'docagent-widget-msg-avatar';
-        avatar.innerHTML = sender === 'user' ? SVGS.user : SVGS.robot;
-
-        const bubble = document.createElement('div');
-        bubble.className = 'docagent-widget-msg-bubble';
-
-        if (sender === 'user') {
-            bubble.textContent = text;
-        } else {
-            bubble.innerHTML = formatMarkdown(text);
-
-            // Sources/RAG dropdown
-            if (context && context.length > 0) {
-                const sourcesContainer = document.createElement('div');
-                sourcesContainer.className = 'docagent-widget-sources';
-
-                const toggleBtn = document.createElement('button');
-                toggleBtn.className = 'docagent-widget-sources-btn';
-                toggleBtn.innerHTML = `${SVGS.chevron} View ${context.length} references`;
-
-                const contentList = document.createElement('div');
-                contentList.className = 'docagent-widget-sources-content';
-
-                context.forEach((chunk, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'docagent-widget-source-item';
-                    item.innerHTML = `
-                        <div class="docagent-widget-source-title">[${index + 1}] ${escapeHtml(chunk.filename)}</div>
-                        <p class="docagent-widget-source-text">"${escapeHtml(chunk.text.substring(0, 100))}..."</p>
-                    `;
-                    contentList.appendChild(item);
-                });
-
-                toggleBtn.addEventListener('click', () => {
-                    const isHidden = contentList.style.display === 'none' || contentList.style.display === '';
-                    contentList.style.display = isHidden ? 'flex' : 'none';
-                    toggleBtn.classList.toggle('active', isHidden);
-                });
-
-                sourcesContainer.appendChild(toggleBtn);
-                sourcesContainer.appendChild(contentList);
-                bubble.appendChild(sourcesContainer);
-            }
-        }
-
-        msgWrapper.appendChild(avatar);
-        msgWrapper.appendChild(bubble);
-        chatHistoryEl.appendChild(msgWrapper);
-        chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
-    }
-
-    function appendTypingIndicator() {
-        const indicatorId = 'docagent-typing-' + Date.now();
-        const msgWrapper = document.createElement('div');
-        msgWrapper.className = 'docagent-widget-msg docagent-widget-msg-agent';
-        msgWrapper.id = indicatorId;
-
-        const avatar = document.createElement('div');
-        avatar.className = 'docagent-widget-msg-avatar';
-        avatar.innerHTML = SVGS.robot;
-
-        const bubble = document.createElement('div');
-        bubble.className = 'docagent-widget-msg-bubble';
-        bubble.innerHTML = `
-            <div class="docagent-widget-typing">
-                <span class="docagent-widget-typing-dot"></span>
-                <span class="docagent-widget-typing-dot"></span>
-                <span class="docagent-widget-typing-dot"></span>
+            <div class="docagent-widget-chat-history"></div>
+            <div class="docagent-widget-footer">
+                <div class="docagent-widget-input-row">
+                    <textarea class="docagent-widget-input" placeholder="Type a message..." rows="1"></textarea>
+                    <button class="docagent-widget-send-btn" disabled>
+                        ${SVGS.send}
+                    </button>
+                </div>
+                <a href="${apiUrl}" target="_blank" class="docagent-widget-brand-link">
+                    Powered by ${SVGS.shield} DocAgent AI
+                </a>
             </div>
         `;
 
-        msgWrapper.appendChild(avatar);
-        msgWrapper.appendChild(bubble);
-        chatHistoryEl.appendChild(msgWrapper);
-        chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
-        return indicatorId;
-    }
+        // Launcher
+        const launcher = document.createElement('div');
+        launcher.className = 'docagent-widget-launcher';
+        launcher.innerHTML = SVGS.chat;
 
-    function removeTypingIndicator(indicatorId) {
-        const el = document.getElementById(indicatorId);
-        if (el) el.remove();
-    }
+        widgetContainer.appendChild(panel);
+        widgetContainer.appendChild(launcher);
+        document.body.appendChild(widgetContainer);
 
-    // 6. Action handlers
-    function toggleChat(forceOpen = null) {
-        state.isOpen = forceOpen !== null ? forceOpen : !state.isOpen;
-        if (state.isOpen) {
-            panel.classList.add('open');
-            launcher.classList.add('open');
-            launcher.innerHTML = SVGS.close;
-            inputEl.focus();
+        // Dom elements references
+        const chatHistoryEl = panel.querySelector('.docagent-widget-chat-history');
+        const inputEl = panel.querySelector('.docagent-widget-input');
+        const sendBtnEl = panel.querySelector('.docagent-widget-send-btn');
+        const closeBtnEl = panel.querySelector('.docagent-widget-header-close');
 
-            // Greet on first open
-            if (!state.hasGreeted) {
-                appendMessage('agent', greetingMsg);
-                state.hasGreeted = true;
-            }
-        } else {
-            panel.classList.remove('open');
-            launcher.classList.remove('open');
-            launcher.innerHTML = SVGS.chat;
-        }
-    }
+        // 5. Message rendering functions
+        function appendMessage(sender, text, context = null) {
+            const msgWrapper = document.createElement('div');
+            msgWrapper.className = `docagent-widget-msg docagent-widget-msg-${sender}`;
 
-    async function handleSendMessage() {
-        const text = inputEl.value.trim();
-        if (!text || state.isTyping) return;
+            const avatar = document.createElement('div');
+            avatar.className = 'docagent-widget-msg-avatar';
+            avatar.innerHTML = sender === 'user' ? SVGS.user : SVGS.robot;
 
-        // Clear input
-        inputEl.value = '';
-        inputEl.style.height = 'auto';
-        sendBtnEl.disabled = true;
+            const bubble = document.createElement('div');
+            bubble.className = 'docagent-widget-msg-bubble';
 
-        // Render user message
-        appendMessage('user', text);
-        state.chatHistory.push({ role: 'user', text: text });
-
-        // Show typing indicator
-        state.isTyping = true;
-        const typingId = appendTypingIndicator();
-
-        try {
-            const response = await fetch(`${apiUrl}/api/chat`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    query: text,
-                    chat_history: state.chatHistory.slice(-10), // last 10 rounds
-                    chatbot_id: chatbotId
-                })
-            });
-
-            removeTypingIndicator(typingId);
-            state.isTyping = false;
-
-            if (response.ok) {
-                const data = await response.json();
-                appendMessage('agent', data.answer, data.context);
-                state.chatHistory.push({ role: 'model', text: data.answer });
+            if (sender === 'user') {
+                bubble.textContent = text;
             } else {
-                appendMessage('agent', '⚠️ Sorry, there was an issue processing your query. Please try again.');
+                bubble.innerHTML = formatMarkdown(text);
+
+                // Sources/RAG dropdown
+                if (context && context.length > 0) {
+                    const sourcesContainer = document.createElement('div');
+                    sourcesContainer.className = 'docagent-widget-sources';
+
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'docagent-widget-sources-btn';
+                    toggleBtn.innerHTML = `${SVGS.chevron} View ${context.length} references`;
+
+                    const contentList = document.createElement('div');
+                    contentList.className = 'docagent-widget-sources-content';
+
+                    context.forEach((chunk, index) => {
+                        const item = document.createElement('div');
+                        item.className = 'docagent-widget-source-item';
+                        item.innerHTML = `
+                            <div class="docagent-widget-source-title">[${index + 1}] ${escapeHtml(chunk.filename)}</div>
+                            <p class="docagent-widget-source-text">"${escapeHtml(chunk.text.substring(0, 100))}..."</p>
+                        `;
+                        contentList.appendChild(item);
+                    });
+
+                    toggleBtn.addEventListener('click', () => {
+                        const isHidden = contentList.style.display === 'none' || contentList.style.display === '';
+                        contentList.style.display = isHidden ? 'flex' : 'none';
+                        toggleBtn.classList.toggle('active', isHidden);
+                    });
+
+                    sourcesContainer.appendChild(toggleBtn);
+                    sourcesContainer.appendChild(contentList);
+                    bubble.appendChild(sourcesContainer);
+                }
             }
-        } catch (error) {
-            removeTypingIndicator(typingId);
-            state.isTyping = false;
-            console.error('Chat error:', error);
-            appendMessage('agent', '⚠️ Connection error. Could not reach the chatbot service.');
+
+            msgWrapper.appendChild(avatar);
+            msgWrapper.appendChild(bubble);
+            chatHistoryEl.appendChild(msgWrapper);
+            chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
         }
+
+        function appendTypingIndicator() {
+            const indicatorId = 'docagent-typing-' + Date.now();
+            const msgWrapper = document.createElement('div');
+            msgWrapper.className = 'docagent-widget-msg docagent-widget-msg-agent';
+            msgWrapper.id = indicatorId;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'docagent-widget-msg-avatar';
+            avatar.innerHTML = SVGS.robot;
+
+            const bubble = document.createElement('div');
+            bubble.className = 'docagent-widget-msg-bubble';
+            bubble.innerHTML = `
+                <div class="docagent-widget-typing">
+                    <span class="docagent-widget-typing-dot"></span>
+                    <span class="docagent-widget-typing-dot"></span>
+                    <span class="docagent-widget-typing-dot"></span>
+                </div>
+            `;
+
+            msgWrapper.appendChild(avatar);
+            msgWrapper.appendChild(bubble);
+            chatHistoryEl.appendChild(msgWrapper);
+            chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+            return indicatorId;
+        }
+
+        function removeTypingIndicator(indicatorId) {
+            const el = document.getElementById(indicatorId);
+            if (el) el.remove();
+        }
+
+        // 6. Action handlers
+        function toggleChat(forceOpen = null) {
+            state.isOpen = forceOpen !== null ? forceOpen : !state.isOpen;
+            if (state.isOpen) {
+                panel.classList.add('open');
+                launcher.classList.add('open');
+                launcher.innerHTML = SVGS.close;
+                inputEl.focus();
+
+                // Greet on first open
+                if (!state.hasGreeted) {
+                    appendMessage('agent', greetingMsg);
+                    state.hasGreeted = true;
+                }
+            } else {
+                panel.classList.remove('open');
+                launcher.classList.remove('open');
+                launcher.innerHTML = SVGS.chat;
+            }
+        }
+
+        async function handleSendMessage() {
+            const text = inputEl.value.trim();
+            if (!text || state.isTyping) return;
+
+            // Clear input
+            inputEl.value = '';
+            inputEl.style.height = 'auto';
+            sendBtnEl.disabled = true;
+
+            // Render user message
+            appendMessage('user', text);
+            state.chatHistory.push({ role: 'user', text: text });
+
+            // Show typing indicator
+            state.isTyping = true;
+            const typingId = appendTypingIndicator();
+
+            try {
+                const response = await fetch(`${apiUrl}/api/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: text,
+                        chat_history: state.chatHistory.slice(-10), // last 10 rounds
+                        chatbot_id: chatbotId
+                    })
+                });
+
+                removeTypingIndicator(typingId);
+                state.isTyping = false;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    appendMessage('agent', data.answer, data.context);
+                    state.chatHistory.push({ role: 'model', text: data.answer });
+                } else {
+                    appendMessage('agent', '⚠️ Sorry, there was an issue processing your query. Please try again.');
+                }
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                state.isTyping = false;
+                console.error('Chat error:', error);
+                appendMessage('agent', '⚠️ Connection error. Could not reach the chatbot service.');
+            }
+        }
+
+        // 7. Event listeners
+        launcher.addEventListener('click', () => toggleChat());
+        closeBtnEl.addEventListener('click', () => toggleChat(false));
+
+        inputEl.addEventListener('input', () => {
+            inputEl.style.height = 'auto';
+            inputEl.style.height = (inputEl.scrollHeight) + 'px';
+            sendBtnEl.disabled = inputEl.value.trim() === '';
+        });
+
+        inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+            }
+        });
+
+        sendBtnEl.addEventListener('click', handleSendMessage);
     }
 
-    // 7. Event listeners
-    launcher.addEventListener('click', () => toggleChat());
-    closeBtnEl.addEventListener('click', () => toggleChat(false));
-
-    inputEl.addEventListener('input', () => {
-        inputEl.style.height = 'auto';
-        inputEl.style.height = (inputEl.scrollHeight) + 'px';
-        sendBtnEl.disabled = inputEl.value.trim() === '';
-    });
-
-    inputEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-        }
-    });
-
-    sendBtnEl.addEventListener('click', handleSendMessage);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWidget);
+    } else {
+        initWidget();
+    }
 })();

@@ -1,5 +1,7 @@
 import os
 import re
+import zipfile
+import xml.etree.ElementTree as ET
 from pypdf import PdfReader
 
 def extract_text_from_pdf(file_path):
@@ -12,11 +14,37 @@ def extract_text_from_pdf(file_path):
             text += f"\n--- Page {page_idx + 1} ---\n{page_text}"
     return text
 
+def extract_text_from_docx(file_path):
+    """Extract raw text from a DOCX file using built-in libraries."""
+    try:
+        with zipfile.ZipFile(file_path) as docx:
+            xml_content = docx.read('word/document.xml')
+            root = ET.fromstring(xml_content)
+            
+            # DOCX XML namespace
+            ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+            
+            # Find all text elements under paragraph elements
+            text_parts = []
+            for para in root.findall('.//w:p', ns):
+                para_text = []
+                for text_elem in para.findall('.//w:t', ns):
+                    if text_elem.text:
+                        para_text.append(text_elem.text)
+                if para_text:
+                    text_parts.append("".join(para_text))
+            
+            return "\n\n".join(text_parts)
+    except Exception as e:
+        raise ValueError(f"Failed to parse DOCX file: {str(e)}")
+
 def extract_text_from_file(file_path):
-    """Extract text from TXT, MD, or PDF files."""
+    """Extract text from TXT, MD, PDF, or DOCX files."""
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".pdf":
         return extract_text_from_pdf(file_path)
+    elif ext == ".docx":
+        return extract_text_from_docx(file_path)
     elif ext in [".txt", ".md", ".markdown"]:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
