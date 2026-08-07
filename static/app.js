@@ -88,6 +88,8 @@ const mockWidgetSendBtn = document.getElementById('mockWidgetSendBtn');
 // Code Snippet Elements
 const embedCodeSnippet = document.getElementById('embedCodeSnippet');
 const btnCopyEmbedCode = document.getElementById('btnCopyEmbedCode');
+const consoleCodeSnippet = document.getElementById('consoleCodeSnippet');
+const btnCopyConsoleCode = document.getElementById('btnCopyConsoleCode');
 
 // ==========================================================================
 // INITIALIZATION & SESSION MANAGEMENT
@@ -394,6 +396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     btnCopyEmbedCode.addEventListener('click', copyEmbedSnippet);
+    btnCopyConsoleCode.addEventListener('click', copyConsoleSnippet);
 });
 
 // ==========================================================================
@@ -944,9 +947,22 @@ function updateWidgetIntegrationPreview() {
 
     const escName = name.replace(/"/g, '&quot;');
     const escGreeting = greeting.replace(/"/g, '&quot;');
+    const escNameJS = name.replace(/"/g, '\\"');
+    const escGreetingJS = greeting.replace(/"/g, '\\"');
     
     const codeSnippet = `<script \n  src="${apiUrl}/widget.js" \n  data-api-url="${apiUrl}"\n  data-chatbot-id="${state.chatbotId}"\n  data-bot-name="${escName}"\n  data-color="${color}"\n  data-greeting="${escGreeting}"\n  defer>\n</script>`;
     embedCodeSnippet.textContent = codeSnippet;
+
+    const consoleSnippet = `const script = document.createElement('script');\n` +
+        `script.src = "${apiUrl}/widget.js";\n` +
+        `script.setAttribute('data-api-url', "${apiUrl}");\n` +
+        `script.setAttribute('data-chatbot-id', "${state.chatbotId}");\n` +
+        `script.setAttribute('data-bot-name', "${escNameJS}");\n` +
+        `script.setAttribute('data-color', "${color}");\n` +
+        `script.setAttribute('data-greeting', "${escGreetingJS}");\n` +
+        `script.defer = true;\n` +
+        `document.body.appendChild(script);`;
+    consoleCodeSnippet.textContent = consoleSnippet;
 }
 
 let mockWidgetOpen = false;
@@ -973,6 +989,27 @@ async function copyEmbedSnippet() {
         setTimeout(() => {
             btnCopyEmbedCode.innerHTML = originalHtml;
             btnCopyEmbedCode.style.background = '';
+        }, 2000);
+    } catch (err) {
+        alert('Failed to copy the snippet. Please select and copy manually.');
+    }
+}
+
+async function copyConsoleSnippet() {
+    const snippetText = consoleCodeSnippet.textContent;
+    try {
+        await navigator.clipboard.writeText(snippetText);
+        
+        const originalHtml = btnCopyConsoleCode.innerHTML;
+        btnCopyConsoleCode.innerHTML = '<i class="mdi mdi-check"></i> Copied!';
+        const originalBg = btnCopyConsoleCode.style.background;
+        btnCopyConsoleCode.style.background = 'var(--secondary)';
+        btnCopyConsoleCode.style.color = '#fff';
+        
+        setTimeout(() => {
+            btnCopyConsoleCode.innerHTML = originalHtml;
+            btnCopyConsoleCode.style.background = originalBg;
+            btnCopyConsoleCode.style.color = '';
         }, 2000);
     } catch (err) {
         alert('Failed to copy the snippet. Please select and copy manually.');

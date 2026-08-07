@@ -613,16 +613,51 @@
                     </div>
                 </div>
 
-                <!-- Bottom: Embedded Code -->
+                <!-- Bottom: Embedded Code & Testing Options -->
                 <div class="integration-code-section">
-                    <h4>Copy Widget Script</h4>
-                    <p>Paste this script element into the <code>&lt;body&gt;</code> or <code>&lt;head&gt;</code> tag of
-                        any HTML file or software platform where you want the chatbot to appear.</p>
-                    <div class="code-copy-container">
-                        <pre><code id="embedCodeSnippet">&lt;script src="http://localhost:8000/widget.js" data-api-url="http://localhost:8000" data-bot-name="DocAgent AI" data-color="#8B5CF6" data-greeting="Hello!" defer&gt;&lt;/script&gt;</code></pre>
-                        <button class="btn btn-primary btn-copy-code" id="btnCopyEmbedCode">
-                            <i class="mdi mdi-content-copy"></i> Copy Code
-                        </button>
+                    <h4>Deployment & Testing Options</h4>
+                    <p>Choose how you want to use or preview the chatbot widget on your website.</p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1rem;">
+                        <!-- Option 1: Standard Website Integration -->
+                        <div>
+                            <h5 style="color: var(--text-main); font-size: 0.95rem; margin-bottom: 0.4rem; font-weight: 600;">
+                                <i class="mdi mdi-xml" style="color: var(--primary); margin-right: 0.25rem;"></i> Option 1: HTML Script Tag (For Production)
+                            </h5>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                                Paste this script tag into the <code>&lt;head&gt;</code> or <code>&lt;body&gt;</code> of your website HTML files.
+                            </p>
+                            <div class="code-copy-container">
+                                <pre><code id="embedCodeSnippet">&lt;script src="http://localhost:8000/widget.js" data-api-url="http://localhost:8000" data-chatbot-id="cb_30abc2477366" data-bot-name="DocAgent AI" data-color="#8B5CF6" data-greeting="Hello!" defer&gt;&lt;/script&gt;</code></pre>
+                                <button class="btn btn-primary btn-copy-code" id="btnCopyEmbedCode">
+                                    <i class="mdi mdi-content-copy"></i> Copy Code
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Option 2: Console Quick Test -->
+                        <div>
+                            <h5 style="color: var(--text-main); font-size: 0.95rem; margin-bottom: 0.4rem; font-weight: 600;">
+                                <i class="mdi mdi-console" style="color: var(--secondary); margin-right: 0.25rem;"></i> Option 2: Browser Console Code (For Instant Testing)
+                            </h5>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                                Open your target website, press <strong>F12</strong> (or right-click &rarr; <em>Inspect</em>) to open Developer Tools, go to the <strong>Console</strong> tab, paste the code below, and press <strong>Enter</strong> to instantly preview the chatbot.
+                            </p>
+                            <div class="code-copy-container">
+                                <pre><code id="consoleCodeSnippet" style="color: #10B981;">const script = document.createElement('script');
+script.src = "http://localhost:8000/widget.js";
+script.setAttribute('data-api-url', "http://localhost:8000");
+script.setAttribute('data-chatbot-id', "cb_30abc2477366");
+script.setAttribute('data-bot-name', "DocAgent AI");
+script.setAttribute('data-color', "#8B5CF6");
+script.setAttribute('data-greeting', "Hello!");
+script.defer = true;
+document.body.appendChild(script);</code></pre>
+                                <button class="btn btn-secondary btn-copy-code" id="btnCopyConsoleCode" style="background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                    <i class="mdi mdi-content-copy"></i> Copy Code
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
